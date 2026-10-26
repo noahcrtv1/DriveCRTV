@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>DriveCRTV</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23292a31'/%3E%3Cpath d='M8 9l8 8 8-8M8 16l8 8 8-8' fill='none' stroke='%23ff8a2b' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-view="new">
+<div class="app">
+
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 22 22" aria-hidden="true"><defs><linearGradient id="crtv-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1abfd9"/><stop offset=".5" stop-color="#7338d9"/><stop offset="1" stop-color="#db2e8c"/></linearGradient></defs><path d="M4 5l7 7 7-7M4 11l7 7 7-7"/></svg>
+      <span>DriveCRTV</span>
+    </div>
+
+    <div class="readout" id="readout" data-live="0">
+      <div class="readout__num"><b id="spd-n">0</b><span id="spd-u">MB/s</span></div>
+      <div class="readout__meta" id="spd-meta">Parado</div>
+    </div>
+
+    <div class="trace" id="trace" role="img" aria-label="Velocidade de download nos últimos 90 segundos">
+      <svg viewBox="0 0 600 52" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="tfade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" style="stop-color:var(--jet);stop-opacity:.34"/>
+            <stop offset="1" style="stop-color:var(--jet);stop-opacity:0"/>
+          </linearGradient>
+        </defs>
+        <line class="trace__grid" x1="0" x2="600" y1="5" y2="5"/>
+        <line class="trace__grid" x1="0" x2="600" y1="26" y2="26"/>
+        <path class="trace__area" id="t-area" d=""/>
+        <path class="trace__line" id="t-line" d=""/>
+      </svg>
+      <span class="trace__lbl trace__lbl--top" id="t-top"></span>
+      <span class="trace__lbl trace__lbl--mid" id="t-mid"></span>
+    </div>
+
+    <button class="ibtn ibtn--lg" id="open-settings" type="button" title="Ajustes" aria-label="Ajustes"><span class="ico" data-icon="sliders"></span></button>
+  </header>
+
+  <div class="banner" id="keybad" hidden>
+    <span class="ico" data-icon="warn"></span>
+    <span>O Google recusou a chave de API. O DriveCRTV voltou para o modo sem chave.</span>
+    <button class="btn btn--sm" type="button" id="keybad-fix">Revisar a chave</button>
+  </div>
+
+  <div class="banner" id="offline" hidden>
+    <span class="ico" data-icon="warn"></span>
+    <span>Sem conexão com o DriveCRTV. Tentando reconectar.</span>
+  </div>
+
+  <div class="viewsw" id="viewsw" role="group" aria-label="Painel">
+    <button type="button" data-view="new" aria-pressed="true">Novo download</button>
+    <button type="button" data-view="queue" aria-pressed="false" id="viewsw-queue">Transferências</button>
+  </div>
+
+  <main class="main">
+
+    <section class="pane" id="pane-new" aria-label="Novo download">
+      <form class="linkbar" id="linkform" autocomplete="off">
+        <label class="sr" for="link">Link do Google Drive</label>
+        <textarea class="link" id="link" rows="1" spellcheck="false" placeholder="Cole o link de uma pasta ou arquivo do Google Drive"></textarea>
+        <button class="btn btn--go" id="scan-btn" type="submit">Analisar</button>
+      </form>
+      <p class="linkerr" id="linkerr" role="alert" hidden></p>
+
+      <div class="empty" id="empty">
+        <h2>Cole um link e baixe na velocidade máxima</h2>
+        <p>Funciona com pastas e arquivos compartilhados como “Qualquer pessoa com o link”. Você não precisa entrar na sua conta.</p>
+        <p>Dica: com o DriveCRTV aberto, copie um link do Drive em qualquer lugar e ele oferece analisar.</p>
+      </div>
+
+      <div class="scanning" id="scanning" hidden>
+        <div class="spin" aria-hidden="true"></div>
+        <div>
+          <b id="scan-title">Lendo o link</b>
+          <span id="scan-sub">Isso leva alguns segundos.</span>
+        </div>
+      </div>
+
+      <div id="result" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
+        <div class="notes" id="notes"></div>
+        <div class="treebar">
+          <label class="filter">
+            <span class="ico" data-icon="search"></span>
+            <span class="sr">Filtrar por nome</span>
+            <input type="search" id="filter" placeholder="Filtrar por nome" autocomplete="off" spellcheck="false">
+          </label>
+          <div class="pick" id="pick" role="group" aria-label="Selecionar por tipo">
+            <span class="pick__lbl">Selecionar</span>
+            <button type="button" data-pick="all">Tudo</button>
+            <button type="button" data-pick="video" hidden>Vídeos</button>
+            <button type="button" data-pick="image" hidden>Fotos</button>
+            <button type="button" data-pick="audio" hidden>Áudio</button>
+            <button type="button" data-pick="none">Nada</button>
+          </div>
+        </div>
+        <div class="tree" id="tree" role="tree" tabindex="0" aria-label="Arquivos do link" aria-multiselectable="true"></div>
+
+        <div class="dock" id="dock">
+          <div class="dest">
+            <span class="dest__lbl">Salvar em</span>
+            <div class="menuwrap">
+              <button class="destbtn" id="destbtn" type="button" aria-haspopup="menu" aria-expanded="false">
+                <span id="dest-text">Downloads</span><span class="ico" data-icon="chev"></span>
+              </button>
+              <div class="menu" id="destmenu" role="menu" hidden></div>
+            </div>
+            <label class="check"><input type="checkbox" id="subfolder"> Criar subpasta com o nome da pasta</label>
+          </div>
+          <div class="dock__go">
+            <div class="tot" id="tot">
+              <b id="tot-size">0 B</b>
+              <small id="tot-meta">Nenhum arquivo selecionado</small>
+            </div>
+            <button class="btn btn--go" id="dl-btn" type="button" disabled>Baixar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane" id="pane-queue" aria-label="Transferências">
+      <div class="pane__head">
+        <h2 class="pane__title">Transferências <span class="pane__count" id="q-count"></span></h2>
+        <button class="btn btn--quiet btn--sm" id="clear-done" type="button" hidden>Limpar concluídos</button>
+      </div>
+      <p class="qhint" id="qhint" hidden>Pode fechar esta janela. Os downloads continuam e você recebe um aviso ao terminar.</p>
+      <div class="jobs" id="jobs"></div>
+      <div class="qempty" id="qempty">
+        <h2>Nenhuma transferência</h2>
+        <p>Os downloads aparecem aqui, com velocidade, tempo restante e a opção de pausar ou retomar.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<dialog id="settings" aria-labelledby="settings-title">
+  <div class="dlg">
+    <div class="dlg__head">
+      <h2 id="settings-title">Ajustes</h2>
+      <button class="ibtn" id="close-settings" type="button" aria-label="Fechar"><span class="ico" data-icon="close"></span></button>
+    </div>
+    <div class="dlg__body">
+
+      <section class="sec">
+        <h3>Velocidade</h3>
+        <p class="hint">Mais conexões aceleram arquivos grandes, mas o Google pode recusar se forem demais. Os valores padrão funcionam bem na maioria das redes.</p>
+        <label class="field"><span>Conexões por arquivo</span><input type="range" id="s-conns" min="1" max="16" step="1"><output id="o-conns"></output></label>
+        <label class="field"><span>Arquivos ao mesmo tempo</span><input type="range" id="s-files" min="1" max="8" step="1"><output id="o-files"></output></label>
+        <label class="field"><span>Limite de conexões no total</span><input type="range" id="s-max" min="2" max="64" step="1"><output id="o-max"></output></label>
+        <label class="field"><span>Tamanho de cada bloco</span><input type="range" id="s-chunk" min="1" max="64" step="1"><output id="o-chunk"></output></label>
+      </section>
+
+      <section class="sec">
+        <h3>Conferência do arquivo</h3>
+        <label class="check"><input type="checkbox" id="s-md5"> Conferir o arquivo ao terminar (MD5)</label>
+        <p class="hint" style="margin-top:6px">Só funciona com chave de API, porque é o Google quem informa o MD5 de cada arquivo.</p>
+      </section>
+
+      <section class="sec">
+        <h3>Chave de API do Google (opcional)</h3>
+        <p class="hint">Sem chave, o DriveCRTV funciona normalmente. Com chave, ele lista pastas grandes por completo, mostra o tamanho de todos os arquivos de uma vez e confere a integridade.</p>
+        <div class="keyrow">
+          <input type="password" id="s-key" placeholder="Cole a chave aqui" autocomplete="off" spellcheck="false">
+          <button class="btn" id="key-show" type="button">Mostrar</button>
+          <button class="btn" id="key-test" type="button">Testar</button>
+        </div>
+        <p class="keystatus" id="key-status" role="status"></p>
+        <details class="guide">
+          <summary>Como criar uma chave</summary>
+          <ol>
+            <li>Abra console.cloud.google.com e crie um projeto.</li>
+            <li>Em “APIs e serviços”, ative a “Google Drive API”.</li>
+            <li>Em “Credenciais”, clique em “Criar credenciais” e escolha “Chave de API”.</li>
+            <li>Se quiser, restrinja a chave à Google Drive API.</li>
+            <li>Cole a chave aqui e clique em Testar.</li>
+          </ol>
+        </details>
+      </section>
+
+      <section class="sec">
+        <h3>Pastas de destino</h3>
+        <p class="hint">A pasta padrão aparece já escolhida em cada novo download. As favoritas ficam no menu “Salvar em”.</p>
+        <div class="rowbtns">
+          <span>Padrão:</span>
+          <button class="btn btn--sm" id="s-defdest" type="button">Downloads</button>
+        </div>
+        <div class="favs" id="favs"></div>
+        <button class="btn btn--sm" id="fav-add" type="button"><span class="ico" data-icon="plus"></span>Adicionar pasta favorita</button>
+      </section>
+
+      <section class="sec">
+        <h3>Geral</h3>
+        <label class="check"><input type="checkbox" id="s-clip"> Avisar quando eu copiar um link do Drive</label>
+        <div class="rowbtns" style="margin-top:12px">
+          <button class="btn btn--sm" id="open-log" type="button">Abrir registro de erros</button>
+          <button class="btn btn--sm" id="quit" type="button">Sair do DriveCRTV</button>
+          <span class="ver" id="ver"></span>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</dialog>
+
+<div class="gone" id="gone" hidden>
+  <div>
+    <h2>O DriveCRTV foi encerrado</h2>
+    <p>Pode fechar esta janela. Para voltar, abra o DriveCRTV de novo.</p>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

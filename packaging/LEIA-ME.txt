@@ -1,0 +1,32 @@
+DriveCRTV 1.0
+Baixa pastas e arquivos públicos do Google Drive com várias conexões em paralelo, sem login.
+
+INSTALAR
+1. Arraste DriveCRTV.app para a pasta Aplicativos.
+2. O app não é assinado pela Apple, então o macOS bloqueia na primeira vez.
+   Abra o Terminal e rode uma vez:
+       xattr -cr /Applications/DriveCRTV.app
+   Depois abra normalmente. (Alternativa: clique com o botão direito no app, Abrir, e confirme.)
+
+USAR
+- Cole o link de uma pasta ou arquivo do Drive e clique em Analisar.
+  Funciona com links compartilhados como "Qualquer pessoa com o link".
+- Escolha o que baixar, a pasta de destino e clique em Baixar.
+- Pode fechar a janela durante um download: ele continua (o ícone fica no Dock) e o macOS avisa
+  quando terminar. Clique no ícone do Dock para ver a janela de novo. Sem downloads, fechar a janela encerra o app.
+- Downloads interrompidos (app fechado, Mac desligado) voltam pausados. É só clicar em Retomar.
+
+CHAVE DE API (OPCIONAL)
+Sem chave tudo funciona. Com chave, o DriveCRTV lista pastas com mais de 50 itens por completo,
+mostra todos os tamanhos de uma vez e confere o MD5 de cada arquivo ao terminar.
+Como criar: Ajustes > Chave de API > "Como criar uma chave". É gratuito.
+
+LIMITES CONHECIDOS
+- Quando o Google bloqueia um arquivo por excesso de downloads (cota), nenhum app consegue baixar;
+  costuma liberar em até 24 horas.
+- Sem chave, pastas com 50 itens ou mais podem aparecer incompletas (o app avisa quando isso pode acontecer).
+
+PROBLEMAS
+Registro de erros: ~/Library/Application Support/DriveCRTV/drivecrtv.log
+(também em Ajustes > Abrir registro de erros)
+Se a janela nativa não abrir, o app usa o navegador como reserva e registra o motivo no log.
