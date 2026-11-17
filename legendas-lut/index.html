@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Legenda + LUT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@700;900&family=Montserrat:wght@800;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f4f2; --panel:#fff; --ink:#1b1b1a; --muted:#6b6b66; --line:#e2e2dd;
+  --accent:#e8590c; --accent-ink:#fff; --chip:#efefeb;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111112; --panel:#1b1b1d; --ink:#f1f1ee; --muted:#9a9a94; --line:#2c2c2f;
+    --accent:#ff7a2f; --accent-ink:#161616; --chip:#26262a;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:16px;max-width:1100px;margin:0 auto}
+h1{font-size:20px;margin:0}
+header p{margin:2px 0 0;color:var(--muted);font-size:13px}
+main{max-width:1100px;margin:0 auto;padding:0 16px 48px;display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:20px;align-items:start}
+@media(max-width:820px){main{grid-template-columns:1fr}}
+.stage{position:sticky;top:12px}
+@media(max-width:820px){.stage{position:static}}
+.phone{background:#000;border-radius:18px;overflow:hidden;aspect-ratio:9/16;width:100%;max-width:360px;margin:0 auto;position:relative}
+.phone canvas{width:100%;height:100%;display:block}
+.empty{position:absolute;inset:0;display:grid;place-items:center;color:#aaa;text-align:center;padding:24px;font-size:14px}
+.transport{display:flex;gap:10px;align-items:center;max-width:360px;margin:10px auto 0}
+.transport input[type=range]{flex:1}
+.time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:84px;text-align:right}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:14px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.card h2 .n{background:var(--accent);color:var(--accent-ink);width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.row label{font-size:13px;color:var(--muted);min-width:96px}
+.row input[type=range]{flex:1;min-width:120px}
+select,input[type=number],textarea,input[type=text]{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:8px;padding:7px 12px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center;color:var(--muted);cursor:pointer}
+.drop.over{border-color:var(--accent);color:var(--ink)}
+.bar{height:6px;background:var(--chip);border-radius:3px;overflow:hidden;margin-top:8px}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.status{font-size:13px;color:var(--muted);margin-top:6px;min-height:18px}
+.caps{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:10px}
+.cap{display:grid;grid-template-columns:auto 1fr auto;gap:8px;padding:8px;border-bottom:1px solid var(--line);align-items:start}
+.cap:last-child{border-bottom:0}
+.cap.active{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.cap .t{display:flex;flex-direction:column;gap:4px}
+.cap .t input{width:68px;padding:3px 5px;font-size:12px}
+.cap textarea{width:100%;resize:vertical;min-height:44px}
+.cap .b{display:flex;flex-direction:column;gap:4px}
+.cap .b button{padding:3px 8px;font-size:12px}
+.luts{display:flex;flex-wrap:wrap;gap:8px}
+.lut{display:flex;flex-direction:column;gap:4px;align-items:center;font-size:12px;cursor:pointer;padding:6px;border:2px solid transparent;border-radius:10px;background:var(--chip)}
+.lut.sel{border-color:var(--accent)}
+.lut i{display:block;width:64px;height:30px;border-radius:5px}
+.hint{font-size:12px;color:var(--muted)}
+.hide{display:none}
+a.dl{display:inline-block;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Legenda automática + LUT</h1>
+  <p>Roda 100% no navegador. O vídeo não sai do seu computador.</p>
+</header>
+
+<main>
+  <section class="stage">
+    <div class="phone">
+      <canvas id="out" width="1080" height="1920"></canvas>
+      <div class="empty" id="empty">Envie um vídeo vertical para começar</div>
+    </div>
+    <div class="transport">
+      <button id="play" disabled>▶</button>
+      <input id="seek" type="range" min="0" max="1000" value="0" disabled>
+      <span class="time" id="time">0:00 / 0:00</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2><span class="n">1</span>Vídeo</h2>
+      <div class="drop" id="drop">Arraste um vídeo aqui ou clique para escolher</div>
+      <input id="file" type="file" accept="video/*" class="hide">
+      <div class="status" id="vinfo"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">2</span>Legendas</h2>
+      <div class="row">
+        <label>Modelo</label>
+        <select id="model">
+          <option value="Xenova/whisper-tiny">Tiny (~40 MB, rápido, menos preciso)</option>
+          <option value="Xenova/whisper-base" selected>Base (~75 MB, equilibrado)</option>
+          <option value="Xenova/whisper-small">Small (~250 MB, mais preciso, lento)</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Idioma</label>
+        <select id="lang">
+          <option value="portuguese" selected>Português</option>
+          <option value="english">Inglês</option>
+          <option value="spanish">Espanhol</option>
+          <option value="french">Francês</option>
+          <option value="italian">Italiano</option>
+          <option value="german">Alemão</option>
+          <option value="">Detectar automaticamente</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Caracteres/linha</label>
+        <input id="maxChars" type="range" min="10" max="40" value="22">
+        <span class="hint" id="maxCharsV">22</span>
+      </div>
+      <div class="row">
+        <label><input id="gpu" type="checkbox"> Usar WebGPU</label>
+        <span class="hint">Mais rápido, se o navegador suportar (baixa um modelo maior).</span>
+      </div>
+      <div class="row">
+        <button class="primary" id="gen" disabled>Gerar legendas</button>
+        <button id="regroup" disabled title="Reagrupa as palavras com o valor de caracteres/linha">Reagrupar</button>
+        <button id="addCap" disabled>+ Legenda</button>
+        <button id="srt" disabled>Baixar .srt</button>
+      </div>
+      <div class="bar"><i id="gbar"></i></div>
+      <div class="status" id="gstatus"></div>
+      <div class="caps hide" id="caps"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">3</span>Estilo da legenda</h2>
+      <div class="row"><label>Fonte</label>
+        <select id="font">
+          <option>Montserrat</option><option>Poppins</option><option>Inter</option>
+          <option>Anton</option><option>Bebas Neue</option>
+        </select>
+        <label style="min-width:auto"><input id="upper" type="checkbox" checked> MAIÚSCULAS</label>
+      </div>
+      <div class="row"><label>Tamanho</label><input id="size" type="range" min="40" max="140" value="82"></div>
+      <div class="row"><label>Posição vertical</label><input id="pos" type="range" min="15" max="92" value="68"></div>
+      <div class="row"><label>Contorno</label><input id="stroke" type="range" min="0" max="16" value="9"></div>
+      <div class="row">
+        <label>Cor</label><input id="color" type="color" value="#ffffff">
+        <label style="min-width:auto"><input id="karaoke" type="checkbox" checked> Destacar palavra</label>
+        <input id="hl" type="color" value="#ffd60a">
+        <label style="min-width:auto"><input id="box" type="checkbox"> Fundo</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">4</span>Cor (LUT)</h2>
+      <div class="luts" id="luts"></div>
+      <div class="row">
+        <label>Intensidade</label><input id="lutMix" type="range" min="0" max="100" value="100">
+      </div>
+      <div class="row">
+        <button id="lutBtn">Carregar arquivo .cube</button>
+        <input id="lutFile" type="file" accept=".cube" class="hide">
+        <span class="hint" id="lutName"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">5</span>Enquadramento e exportação</h2>
+      <div class="row"><label>Ajuste</label>
+        <select id="fit"><option value="fill">Preencher 9:16 (corta)</option><option value="fit">Caber (barras pretas)</option></select>
+      </div>
+      <div class="row"><label>Posição do corte</label><input id="pan" type="range" min="-100" max="100" value="0"></div>
+      <div class="row">
+        <button class="primary" id="export" disabled>Exportar vídeo</button>
+        <button id="cancel" class="hide">Cancelar</button>
+      </div>
+      <div class="bar"><i id="ebar"></i></div>
+      <div class="status" id="estatus"></div>
+      <div class="hint">A exportação roda em tempo real (um vídeo de 1 min leva 1 min). Mantenha esta aba aberta e visível durante o processo.</div>
+    </div>
+  </section>
+</main>
+
+<video id="vid" playsinline preload="auto" class="hide"></video>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const W = 1080, H = 1920;
+
+/* ───────── estado ───────── */
+const S = {
+  hasVideo:false, captions:[], words:[],
+  lut:null, lutId:'none', mix:1,
+  exporting:false,
+  style:{font:'Montserrat',weight:900,size:82,pos:68,stroke:9,color:'#ffffff',hl:'#ffd60a',karaoke:true,upper:true,box:false},
+  fit:'fill', pan:0, audio:null,
+};
+const vid = $('vid'), out = $('out'), ctx = out.getContext('2d');
+
+/* ───────── WebGL: vídeo + LUT 3D ───────── */
+const glc = document.createElement('canvas'); glc.width = W; glc.height = H;
+const gl = glc.getContext('webgl2', {premultipliedAlpha:false, preserveDrawingBuffer:true});
+let glProg, vTex, lutTex, U = {};
+function initGL(){
+  if(!gl){ alert('Seu navegador não suporta WebGL2.'); return; }
+  const vs = `#version 300 es
+  in vec2 p; out vec2 vUv;
+  void main(){ vUv = p*.5+.5; gl_Position = vec4(p,0,1); }`;
+  const fs = `#version 300 es
+  precision highp float; precision highp sampler3D;
+  uniform sampler2D uVideo; uniform sampler3D uLut;
+  uniform float uSize, uMix; uniform vec2 uScale, uOff; uniform bool uHas;
+  in vec2 vUv; out vec4 o;
+  void main(){
+    vec2 uv = (vUv-.5)*uScale+.5+uOff;
+    if(uv.x<0.||uv.x>1.||uv.y<0.||uv.y>1.){ o=vec4(0,0,0,1); return; }
+    vec3 c = texture(uVideo, uv).rgb;
+    if(uHas){
+      vec3 l = texture(uLut, c*(uSize-1.)/uSize + .5/uSize).rgb;
+      c = mix(c, l, uMix);
+    }
+    o = vec4(c,1.);
+  }`;
+  const sh = (t,s)=>{const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);
+    if(!gl.getShaderParameter(x,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x;};
+  glProg = gl.createProgram();
+  gl.attachShader(glProg, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(glProg, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(glProg); gl.useProgram(glProg);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(glProg,'p'); gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  ['uVideo','uLut','uSize','uMix','uScale','uOff','uHas'].forEach(n=>U[n]=gl.getUniformLocation(glProg,n));
+  vTex = gl.createTexture(); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, vTex);
+  for(const [k,v] of [[gl.TEXTURE_MIN_FILTER,gl.LINEAR],[gl.TEXTURE_MAG_FILTER,gl.LINEAR],
+    [gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D,k,v);
+  lutTex = gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, lutTex);
+  for(const [k,v] of [[gl.TEXTURE_MIN_FILTER,gl.LINEAR],[gl.TEXTURE_MAG_FILTER,gl.LINEAR],
+    [gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_R,gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_3D,k,v);
+  gl.uniform1i(U.uVideo,0); gl.uniform1i(U.uLut,1);
+  gl.viewport(0,0,W,H);
+}
+function setLut(lut){
+  S.lut = lut;
+  if(!lut) return;
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, lutTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); /* FLIP_Y é inválido p/ texturas 3D */
+  gl.texImage3D(gl.TEXTURE_3D,0,gl.RGBA8,lut.size,lut.size,lut.size,0,gl.RGBA,gl.UNSIGNED_BYTE,lut.data);
+}
+function drawVideoGL(){
+  const ca = W/H, va = (vid.videoWidth||W)/(vid.videoHeight||H);
+  let sx=1, sy=1;
+  if(S.fit==='fill'){ if(va>ca) sx=ca/va; else sy=va/ca; }
+  else { if(va>ca) sy=va/ca; else sx=ca/va; }
+  const off = S.fit==='fill' ? S.pan*(1-sx)/2 : 0;
+  const offY = S.fit==='fill' ? S.pan*(1-sy)/2 : 0;
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, vTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,vid);
+  gl.uniform2f(U.uScale,sx,sy); gl.uniform2f(U.uOff,off,-offY);
+  gl.uniform1i(U.uHas, S.lut?1:0);
+  if(S.lut){ gl.uniform1f(U.uSize,S.lut.size); gl.uniform1f(U.uMix,S.mix); }
+  gl.drawArrays(gl.TRIANGLES,0,3);
+}
+
+/* ───────── LUTs ───────── */
+const clamp = x => Math.min(1,Math.max(0,x));
+const lum = (r,g,b) => .2126*r+.7152*g+.0722*b;
+const smooth = (a,b,x)=>{x=clamp((x-a)/(b-a));return x*x*(3-2*x)};
+const sat = ([r,g,b],s)=>{const l=lum(r,g,b);return [l+(r-l)*s,l+(g-l)*s,l+(b-l)*s]};
+const contrast = (c,k)=>c.map(v=>(v-.5)*k+.5);
+const LUT_PRESETS = [
+  {id:'none', name:'Nenhuma', fn:null},
+  {id:'cinema', name:'Cinema', fn:(r,g,b)=>{
+    const l=lum(r,g,b), w=1-smooth(0,.6,l), h=smooth(.4,1,l);
+    return sat(contrast([r+h*.08-w*.06, g+h*.02+w*.02, b+w*.09-h*.07],1.12),1.1);}},
+  {id:'quente', name:'Quente', fn:(r,g,b)=>contrast([r*1.06+.02,g+.005,b*.9],1.05)},
+  {id:'frio', name:'Frio', fn:(r,g,b)=>contrast([r*.92,g,b*1.08+.02],1.04)},
+  {id:'vintage', name:'Vintage', fn:(r,g,b)=>{
+    const c=[r*.88+.07,g*.88+.07,b*.88+.07]; const s=sat(c,.75); return [s[0]+.04,s[1]+.01,s[2]-.03];}},
+  {id:'matte', name:'Matte', fn:(r,g,b)=>{
+    const l=lum(r,g,b), w=1-smooth(0,.5,l);
+    return sat([r*.9+.06,g*.9+.06+w*.01,b*.9+.065],.9);}},
+  {id:'vivido', name:'Vívido', fn:(r,g,b)=>contrast(sat([r,g,b],1.45),1.12)},
+  {id:'pb', name:'P&B', fn:(r,g,b)=>{const v=contrast([lum(r,g,b)],1.25)[0];return [v,v,v];}},
+];
+function buildLut(fn, n=33){
+  const d = new Uint8Array(n*n*n*4); let i=0;
+  for(let b=0;b<n;b++)for(let g=0;g<n;g++)for(let r=0;r<n;r++){
+    const o = fn(r/(n-1),g/(n-1),b/(n-1));
+    d[i++]=Math.round(clamp(o[0])*255); d[i++]=Math.round(clamp(o[1])*255);
+    d[i++]=Math.round(clamp(o[2])*255); d[i++]=255;
+  }
+  return {size:n,data:d};
+}
+function parseCube(text){
+  let n=0, dmin=[0,0,0], dmax=[1,1,1]; const vals=[];
+  for(const raw of text.split(/\r?\n/)){
+    const line = raw.trim(); if(!line||line[0]==='#') continue;
+    const p = line.split(/\s+/);
+    if(p[0]==='LUT_3D_SIZE') n=parseInt(p[1]);
+    else if(p[0]==='LUT_1D_SIZE') throw new Error('LUT 1D não é suportada, use uma LUT 3D (.cube).');
+    else if(p[0]==='DOMAIN_MIN') dmin=p.slice(1,4).map(Number);
+    else if(p[0]==='DOMAIN_MAX') dmax=p.slice(1,4).map(Number);
+    else if(/^[-+\d.]/.test(p[0]) && p.length>=3) vals.push(+p[0],+p[1],+p[2]);
+  }
+  if(!n || vals.length!==n*n*n*3) throw new Error('Arquivo .cube inválido (tamanho não confere).');
+  const d = new Uint8Array(n*n*n*4);
+  for(let i=0,j=0;i<n*n*n;i++){
+    for(let c=0;c<3;c++) d[j++]=Math.round(clamp((vals[i*3+c]-dmin[c])/(dmax[c]-dmin[c]))*255);
+    d[j++]=255;
+  }
+  return {size:n,data:d};
+}
+function initLutUI(){
+  const samples=[[.85,.65,.55],[.4,.6,.85],[.35,.6,.3],[.5,.5,.5],[.92,.92,.92]];
+  for(const p of LUT_PRESETS){
+    const el = document.createElement('div'); el.className='lut'; el.dataset.id=p.id;
+    const cols = samples.map(s=>{const o=p.fn?p.fn(...s):s;return `rgb(${o.map(v=>Math.round(clamp(v)*255)).join(',')})`});
+    const stops = cols.map((c,i)=>`${c} ${i*20}% ${(i+1)*20}%`).join(',');
+    el.innerHTML = `<i style="background:linear-gradient(90deg,${stops})"></i>${p.name}`;
+    el.onclick = ()=>{
+      S.lutId=p.id; $('lutName').textContent='';
+      setLut(p.fn ? buildLut(p.fn) : null); markLut(); render();
+    };
+    $('luts').appendChild(el);
+  }
+  markLut();
+}
+function markLut(){ document.querySelectorAll('.lut').forEach(e=>e.classList.toggle('sel', e.dataset.id===S.lutId)); }
+
+/* ───────── legendas: desenho ───────── */
+function currentCaption(t){ return S.captions.find(c=>t>=c.start && t<=c.end); }
+function drawCaptions(t){
+  const cap = currentCaption(t); if(!cap || !cap.words.length) return;
+  const st = S.style;
+  ctx.save();
+  ctx.font = `${st.weight} ${st.size}px "${st.font}", sans-serif`;
+  ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round'; ctx.miterLimit = 2;
+  const words = cap.words.map((w,i)=>({...w, t: st.upper ? w.t.toUpperCase() : w.t, end: cap.words[i+1] ? cap.words[i+1].s : cap.end}));
+  const sp = ctx.measureText(' ').width, maxW = W*.84;
+  const lines=[]; let cur=[], curW=0;
+  for(const w of words){
+    const ww = ctx.measureText(w.t).width;
+    if(cur.length && curW+sp+ww>maxW){ lines.push({ws:cur,w:curW}); cur=[]; curW=0; }
+    w.mw = ww; curW += (cur.length?sp:0)+ww; cur.push(w);
+  }
+  lines.push({ws:cur,w:curW});
+  const lh = st.size*1.18, total = lines.length*lh;
+  let y = H*st.pos/100 - total/2 + st.size*.95;
+  if(st.box){
+    const bw = Math.max(...lines.map(l=>l.w))+st.size*.8;
+    ctx.fillStyle='rgba(0,0,0,.6)';
+    ctx.beginPath(); ctx.roundRect((W-bw)/2, y-st.size*1.05, bw, total+st.size*.3, st.size*.25); ctx.fill();
+  }
+  for(const l of lines){
+    let x = (W-l.w)/2;
+    for(const w of l.ws){
+      const active = st.karaoke && t>=w.s && t<w.end;
+      if(st.stroke>0){ ctx.strokeStyle='#000'; ctx.lineWidth=st.stroke*2; ctx.strokeText(w.t,x,y); }
+      ctx.fillStyle = active ? st.hl : st.color; ctx.fillText(w.t,x,y);
+      x += w.mw + sp;
+    }
+    y += lh;
+  }
+  ctx.restore();
+}
+
+/* ───────── render ───────── */
+function render(){
+  if(!S.hasVideo || vid.readyState<2) return;
+  drawVideoGL();
+  ctx.drawImage(glc,0,0);
+  drawCaptions(vid.currentTime);
+}
+let raf=0;
+function loop(){ render(); updateTransport(); raf = requestAnimationFrame(loop); }
+function fmt(t){ t=Math.max(0,t||0); const m=Math.floor(t/60), s=Math.floor(t%60); return `${m}:${String(s).padStart(2,'0')}`; }
+function updateTransport(){
+  if(!S.hasVideo) return;
+  if(!seeking) $('seek').value = vid.duration ? vid.currentTime/vid.duration*1000 : 0;
+  $('time').textContent = `${fmt(vid.currentTime)} / ${fmt(vid.duration)}`;
+  const cap = currentCaption(vid.currentTime);
+  document.querySelectorAll('.cap').forEach(e=>{
+    const on = cap && e.dataset.id===cap.id;
+    if(on!==e.classList.contains('active')){
+      e.classList.toggle('active',on);
+      if(on && !vid.paused && !S.exporting) e.scrollIntoView({block:'nearest'});
+    }
+  });
+}
+
+/* ───────── carregar vídeo ───────── */
+let seeking=false;
+function loadFile(f){
+  if(!f) return;
+  if(S.url) URL.revokeObjectURL(S.url);
+  S.url = URL.createObjectURL(f); S.file = f;
+  vid.src = S.url; vid.load();
+}
+vid.addEventListener('loadeddata', ()=>{
+  S.hasVideo = true; $('empty').classList.add('hide');
+  ['play','seek','gen','export','addCap'].forEach(i=>$(i).disabled=false);
+  const portrait = vid.videoHeight>vid.videoWidth;
+  $('vinfo').textContent = `${S.file.name} · ${vid.videoWidth}×${vid.videoHeight} · ${fmt(vid.duration)}` +
+    (portrait ? '' : ' · ⚠ não é vertical (será cortado para 9:16)');
+  S.captions=[]; S.words=[]; renderCaps(); setSrtButtons();
+  vid.currentTime = 0.01;
+  if(!raf) loop();
+  render();
+});
+vid.addEventListener('seeked', render);
+vid.addEventListener('ended', ()=>{ $('play').textContent='▶'; });
+$('drop').onclick = ()=>$('file').click();
+$('file').onchange = e=>loadFile(e.target.files[0]);
+['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();$('drop').classList.add('over')}));
+['dragleave','drop'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();$('drop').classList.remove('over')}));
+$('drop').addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
+
+/* ───────── áudio (necessário p/ exportar com som) ───────── */
+function ensureAudio(){
+  if(S.audio) { if(S.audio.ctx.state==='suspended') S.audio.ctx.resume(); return S.audio; }
+  const ac = new AudioContext(); const src = ac.createMediaElementSource(vid);
+  src.connect(ac.destination);
+  S.audio = {ctx:ac, src}; return S.audio;
+}
+$('play').onclick = ()=>{
+  if(S.exporting) return; ensureAudio();
+  if(vid.paused){ vid.play(); $('play').textContent='⏸'; } else { vid.pause(); $('play').textContent='▶'; }
+};
+$('seek').addEventListener('input', e=>{ seeking=true; vid.currentTime = e.target.value/1000*vid.duration; });
+$('seek').addEventListener('change', ()=>{ seeking=false; });
+
+/* ───────── transcrição (Whisper no navegador, via Web Worker) ───────── */
+const WORKER_SRC = `
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3';
+env.allowLocalModels = false;
+const cache = {};
+const post = (type, data) => self.postMessage({type, ...data});
+async function load(model, device){
+  const key = model+'|'+device;
+  if(cache[key]) return cache[key];
+  cache[key] = await pipeline('automatic-speech-recognition', model, {
+    device, dtype: device==='webgpu' ? 'fp32' : 'q8',
+    progress_callback: p => post('progress', {p}),
+  });
+  return cache[key];
+}
+self.onmessage = async (e) => {
+  const {audio, model, language, gpu} = e.data;
+  try{
+    let asr;
+    try{ asr = await load(model, gpu ? 'webgpu' : 'wasm'); }
+    catch(err){
+      if(!gpu) throw err;
+      post('status', {text:'WebGPU falhou, usando CPU…'});
+      asr = await load(model, 'wasm');
+    }
+    post('status', {text:'Transcrevendo… (pode levar um tempo, não feche a aba)'});
+    const opts = {task:'transcribe', return_timestamps:'word', chunk_length_s:30, stride_length_s:5};
+    if(language) opts.language = language;
+    const r = await asr(audio, opts);
+    post('done', {chunks: r.chunks||[], text: r.text});
+  }catch(err){ post('error', {message: String(err && err.message || err)}); }
+};`;
+let worker=null;
+function getWorker(){
+  if(worker) return worker;
+  const url = URL.createObjectURL(new Blob([WORKER_SRC],{type:'text/javascript'}));
+  worker = new Worker(url,{type:'module'});
+  return worker;
+}
+async function decodeAudio16k(file){
+  const buf = await file.arrayBuffer();
+  const ac = new AudioContext({sampleRate:16000});
+  try{
+    const ab = await ac.decodeAudioData(buf);
+    const ch = ab.numberOfChannels, n = ab.length, mono = new Float32Array(n);
+    for(let c=0;c<ch;c++){ const d=ab.getChannelData(c); for(let i=0;i<n;i++) mono[i]+=d[i]/ch; }
+    return mono;
+  } finally { ac.close(); }
+}
+function setBar(id,v){ $(id).style.width = Math.round(v*100)+'%'; }
+$('gen').onclick = async ()=>{
+  if(!S.hasVideo) return;
+  $('gen').disabled = true; setBar('gbar',0);
+  try{
+    $('gstatus').textContent='Extraindo áudio…';
+    const audio = await decodeAudio16k(S.file);
+    const w = getWorker();
+    const files = {};
+    const done = new Promise((res,rej)=>{
+      w.onmessage = e=>{
+        const m = e.data;
+        if(m.type==='progress'){
+          const p=m.p;
+          if(p.status==='progress' && p.file){
+            files[p.file]={l:p.loaded,t:p.total};
+            const L=Object.values(files).reduce((a,b)=>a+b.l,0), T=Object.values(files).reduce((a,b)=>a+b.t,0);
+            setBar('gbar',T?L/T:0);
+            $('gstatus').textContent=`Baixando modelo… ${(L/1e6).toFixed(0)} / ${(T/1e6).toFixed(0)} MB (só na primeira vez)`;
+          }
+        } else if(m.type==='status'){ $('gstatus').textContent=m.text; setBar('gbar',1); }
+        else if(m.type==='done') res(m);
+        else if(m.type==='error') rej(new Error(m.message));
+      };
+      w.onerror = e=>rej(new Error(e.message||'Falha ao iniciar o worker (precisa de http://, não file://).'));
+    });
+    w.postMessage({audio, model:$('model').value, language:$('lang').value, gpu:$('gpu').checked}, [audio.buffer]);
+    const r = await done;
+    const words = [];
+    for(const c of r.chunks){
+      const t=(c.text||'').trim(); if(!t) continue;
+      const s=c.timestamp[0] ?? 0, e=c.timestamp[1] ?? (s+.4);
+      words.push({t,s,e});
+    }
+    if(!words.length) throw new Error('Nenhuma fala detectada.');
+    S.words = words; regroup();
+    $('gstatus').textContent = `Pronto: ${S.captions.length} legendas. Revise e edite abaixo.`; setBar('gbar',1);
+  }catch(err){
+    $('gstatus').textContent = 'Erro: '+err.message; setBar('gbar',0);
+  }finally{ $('gen').disabled=false; }
+};
+
+/* agrupa palavras em legendas curtas */
+let capId=0;
+function groupWords(words, maxChars){
+  const caps=[]; let cur=[];
+  const flush=()=>{ if(!cur.length) return;
+    caps.push({id:'c'+(capId++), start:cur[0].s, end:cur[cur.length-1].e, words:cur}); cur=[]; };
+  for(const w of words){
+    const len = cur.reduce((a,x)=>a+x.t.length+1,0)+w.t.length;
+    const gap = cur.length ? w.s-cur[cur.length-1].e : 0;
+    if(cur.length && (len>maxChars || gap>.7)) flush();
+    cur.push({...w});
+    if(/[.!?…]$/.test(w.t) && cur.length>=2) flush();
+  }
+  flush();
+  for(let i=0;i<caps.length;i++){
+    const nx = caps[i+1]; caps[i].end = Math.min(caps[i].end+.2, nx ? nx.start : Infinity);
+  }
+  return caps;
+}
+function regroup(){ S.captions = groupWords(S.words, +$('maxChars').value); renderCaps(); setSrtButtons(); render(); }
+$('regroup').onclick = ()=>{ if(S.words.length) regroup(); };
+$('maxChars').oninput = e=>{ $('maxCharsV').textContent=e.target.value; };
+function setSrtButtons(){ const on=S.captions.length>0; $('srt').disabled=!on; $('regroup').disabled=!S.words.length; }
+
+/* ───────── lista de legendas editável ───────── */
+function setCapText(cap, text){
+  const ws = text.trim().split(/\s+/).filter(Boolean);
+  const total = ws.reduce((a,w)=>a+w.length,0) || 1, dur = Math.max(.1,cap.end-cap.start);
+  let t = cap.start;
+  cap.words = ws.map(w=>{ const d = dur*w.length/total; const o={t:w,s:t,e:t+d}; t+=d; return o; });
+}
+function renderCaps(){
+  const box = $('caps'); box.innerHTML='';
+  box.classList.toggle('hide', !S.captions.length);
+  S.captions.forEach((cap,i)=>{
+    const el = document.createElement('div'); el.className='cap'; el.dataset.id=cap.id;
+    el.innerHTML = `<div class="t"><input type="number" step=".05" min="0" value="${cap.start.toFixed(2)}" title="início (s)"><input type="number" step=".05" min="0" value="${cap.end.toFixed(2)}" title="fim (s)"></div>
+      <textarea rows="2"></textarea>
+      <div class="b"><button title="Ir para esta legenda">▶</button><button title="Juntar com a próxima">⤵</button><button title="Apagar">✕</button></div>`;
+    const [ti,te] = el.querySelectorAll('input'), ta = el.querySelector('textarea'), [bp,bm,bd] = el.querySelectorAll('button');
+    ta.value = cap.words.map(w=>w.t).join(' ');
+    ta.oninput = ()=>{ setCapText(cap, ta.value); render(); };
+    ti.onchange = ()=>{ cap.start=+ti.value; setCapText(cap, ta.value); };
+    te.onchange = ()=>{ cap.end=+te.value; setCapText(cap, ta.value); };
+    bp.onclick = ()=>{ vid.currentTime = cap.start+.02; };
+    bm.onclick = ()=>{ const n=S.captions[i+1]; if(!n) return; cap.words=cap.words.concat(n.words); cap.end=n.end; S.captions.splice(i+1,1); renderCaps(); render(); };
+    bd.onclick = ()=>{ S.captions.splice(i,1); renderCaps(); setSrtButtons(); render(); };
+    box.appendChild(el);
+  });
+}
+$('addCap').onclick = ()=>{
+  const t = vid.currentTime;
+  const cap = {id:'c'+(capId++), start:t, end:Math.min(vid.duration,t+1.5), words:[]};
+  setCapText(cap,'Nova legenda');
+  S.captions.push(cap); S.captions.sort((a,b)=>a.start-b.start);
+  renderCaps(); setSrtButtons(); render();
+};
+function srtTime(t){ const ms=Math.round(t*1000); const p=(n,l=2)=>String(n).padStart(l,'0');
+  return `${p(Math.floor(ms/3600000))}:${p(Math.floor(ms/60000)%60)}:${p(Math.floor(ms/1000)%60)},${p(ms%1000,3)}`; }
+$('srt').onclick = ()=>{
+  const txt = S.captions.map((c,i)=>`${i+1}\n${srtTime(c.start)} --> ${srtTime(c.end)}\n${c.words.map(w=>w.t).join(' ')}\n`).join('\n');
+  download(new Blob([txt],{type:'text/plain'}), 'legendas.srt');
+};
+function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),10000); }
+
+/* ───────── controles de estilo / LUT / enquadramento ───────── */
+const st = S.style;
+const bind = (id,key,conv=v=>v)=>$(id).addEventListener('input',e=>{ st[key]=conv(e.target.type==='checkbox'?e.target.checked:e.target.value); render(); });
+bind('size','size',Number); bind('pos','pos',Number); bind('stroke','stroke',Number);
+bind('color','color'); bind('hl','hl'); bind('karaoke','karaoke'); bind('upper','upper'); bind('box','box');
+$('font').addEventListener('input',async e=>{
+  st.font=e.target.value; try{ await document.fonts.load(`${st.weight} 40px "${st.font}"`); }catch{} render();
+});
+$('lutMix').oninput = e=>{ S.mix=e.target.value/100; render(); };
+$('fit').oninput = e=>{ S.fit=e.target.value; render(); };
+$('pan').oninput = e=>{ S.pan=e.target.value/100; render(); };
+$('lutBtn').onclick = ()=>$('lutFile').click();
+$('lutFile').onchange = async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const lut = parseCube(await f.text()); setLut(lut);
+    S.lutId='custom'; markLut(); $('lutName').textContent=`${f.name} (${lut.size}³)`; render();
+  }catch(err){ alert(err.message); }
+  e.target.value='';
+};
+
+/* ───────── exportar ───────── */
+function pickMime(){
+  const list=['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4;codecs=avc1,mp4a','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  return list.find(m=>window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+}
+let cancelExport=false;
+$('cancel').onclick = ()=>{ cancelExport=true; };
+$('export').onclick = async ()=>{
+  if(S.exporting || !S.hasVideo) return;
+  const mime = pickMime();
+  if(!mime){ alert('Seu navegador não suporta gravação de vídeo (MediaRecorder).'); return; }
+  S.exporting = true; cancelExport=false;
+  $('export').disabled=true; $('cancel').classList.remove('hide'); $('play').disabled=true;
+  vid.pause(); $('play').textContent='▶';
+  const a = ensureAudio();
+  const dest = a.ctx.createMediaStreamDestination();
+  a.src.connect(dest); a.src.disconnect(a.ctx.destination);
+  try{
+    vid.currentTime = 0; await new Promise(r=>vid.addEventListener('seeked',r,{once:true}));
+    render();
+    const stream = out.captureStream(30);
+    dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+    const rec = new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:10e6,audioBitsPerSecond:192e3});
+    const chunks=[]; rec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
+    const stopped = new Promise(r=>rec.onstop=r);
+    rec.start(500);
+    vid.playbackRate=1;
+    await vid.play();
+    await new Promise(res=>{
+      const tick=()=>{
+        render();
+        const p = vid.currentTime/vid.duration; setBar('ebar',p);
+        $('estatus').textContent = `Gravando… ${Math.round(p*100)}%`;
+        if(vid.ended || cancelExport || p>=.9995){ res(); return; }
+        requestAnimationFrame(tick);
+      };
+      tick();
+    });
+    vid.pause(); await new Promise(r=>setTimeout(r,200)); rec.stop(); await stopped;
+    if(cancelExport){ $('estatus').textContent='Cancelado.'; setBar('ebar',0); }
+    else{
+      const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+      const blob = new Blob(chunks,{type:mime.split(';')[0]});
+      download(blob, `video-legendado.${ext}`);
+      $('estatus').textContent = `Pronto! Arquivo .${ext} baixado (${(blob.size/1e6).toFixed(1)} MB).` + (ext==='webm' ? ' Obs.: seu navegador gerou WebM; o Chrome atual gera MP4.' : '');
+      setBar('ebar',1);
+    }
+  }catch(err){ $('estatus').textContent='Erro: '+err.message; }
+  finally{
+    try{ a.src.disconnect(dest); }catch{}
+    a.src.connect(a.ctx.destination);
+    S.exporting=false; $('export').disabled=false; $('cancel').classList.add('hide'); $('play').disabled=false;
+  }
+};
+
+/* ───────── init ───────── */
+initGL(); initLutUI();
+$('gpu').checked = !!navigator.gpu; if(!navigator.gpu) $('gpu').disabled = true;
+ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+</script>
+</body>
+</html>
